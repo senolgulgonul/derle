@@ -181,6 +181,12 @@
     font-size: 0.82em; background: var(--gutter-bg);
     border: 1px solid var(--line); border-radius: 4px; padding: 0.05rem 0.3rem;
   }
+  .help-credit {
+    border-top: 1px solid var(--line);
+    padding-top: 0.7rem; margin-top: 1rem;
+    color: var(--muted); font-size: 0.82rem;
+  }
+  .help-credit a { color: var(--muted); }
   .help-body pre {
     font: 0.78rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     background: var(--gutter-bg); border: 1px solid var(--line);
@@ -202,7 +208,7 @@
 </head>
 <body>
 <div id="toolbar">
-  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.3</span></h1>
+  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.4</span></h1>
   <button class="tb-btn" id="open-c">Open</button>
   <select class="tb-btn" id="examples" aria-label="Load an example">
     <option value="" selected>Examples…</option>
@@ -283,6 +289,8 @@
       once (~23 MB); afterwards it loads from cache. Programs are stopped after
       10 seconds (usually an infinite loop). Everything runs locally in your
       browser — your code never leaves your machine.</p>
+      <p class="help-credit">Derle is built and maintained by Şenol Gülgönül —
+      <a href="https://github.com/senolgulgonul/derle" target="_blank" rel="noopener">github.com/senolgulgonul/derle</a></p>
     </div>
   </div>
 </div>

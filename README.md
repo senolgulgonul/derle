@@ -48,3 +48,8 @@ structured C programming course for first-year EEE students.
 The shipped toolchain contains LLVM/clang (Apache-2.0 WITH
 LLVM-exception) and wasi-libc (Apache-2.0/MIT) binaries built from
 unmodified upstream sources at tag `llvmorg-18.1.2` / wasi-sdk 24.
+
+---
+
+Derle is built and maintained by **Şenol Gülgönül**
+(Asst. Prof., Electrical & Electronics Engineering).

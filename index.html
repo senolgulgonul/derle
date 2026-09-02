@@ -56,8 +56,6 @@
   .tb-btn.primary:hover:not(:disabled) { background: #3a3a37; }
   .tb-btn.primary:disabled { background: #b8b7b4; border-color: #b8b7b4; color: #fff; }
   select.tb-btn { appearance: auto; padding-right: 0.5rem; max-width: 14rem; }
-  #status { color: var(--muted); font-size: 0.8rem; margin-left: 0.25rem; }
-  #runtime-note { margin-left: auto; color: var(--muted); font-size: 0.78rem; }
 
   /* ---------- split panes ---------- */
   #split { flex: 1; display: flex; min-width: 0; min-height: 0; padding: 0.75rem; }
@@ -208,7 +206,7 @@
 </head>
 <body>
 <div id="toolbar">
-  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.6</span></h1>
+  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.7</span></h1>
   <button class="tb-btn" id="open-c">Open</button>
   <button class="tb-btn" id="save-c" title="Save the code to your computer (Ctrl+S)">Save</button>
   <select class="tb-btn" id="examples" aria-label="Load an example">
@@ -222,8 +220,6 @@
   <button class="tb-btn" id="compile" title="clang runs in your browser; first use downloads the toolchain once">Compile</button>
   <button class="tb-btn primary" id="run" disabled>Run</button>
   <button class="tb-btn" id="help-btn" aria-haspopup="dialog">Help</button>
-  <span id="status"></span>
-  <span id="runtime-note" class="mono">wasi runtime</span>
   <input type="file" id="c-input" accept=".c,.h,.txt" hidden>
 </div>
 
@@ -429,7 +425,7 @@ onmessage = async (ev) => {
 
   const $ = id => document.getElementById(id);
   const codeEl = $('code'), gutter = $('gutter'), consoleEl = $('console');
-  const stdinBox = $('stdin'), statusEl = $('status'), runtimeEl = $('runtime-note');
+  const stdinBox = $('stdin');
   const runBtn = $('run'), codeTitle = $('code-title');
 
   const workerSrc = $('worker-src').textContent;
@@ -467,7 +463,9 @@ onmessage = async (ev) => {
   updateGutter();
 
   /* ---------- console ---------- */
-  function setStatus(text) { statusEl.textContent = text; }
+  const codeSub = $('code-sub');
+  const CODE_SUB_DEFAULT = codeSub.textContent;
+  function setStatus(text) { codeSub.textContent = text || CODE_SUB_DEFAULT; }
   function append(text, cls) {
     if (!text) return;
     const span = document.createElement('span');
@@ -624,8 +622,7 @@ onmessage = async (ev) => {
         wasmBytes = result.wasm;
         runBtn.disabled = false;
         append(`— compiled in ${ms} ms — press Run\n`, 'meta ok');
-        setStatus(`compiled in ${ms} ms`);
-        runtimeEl.textContent = `clang · wasm · ${ms} ms`;
+        setStatus('');
       }
     } catch (e) { /* already reported */ }
     compBusy = false;
@@ -698,8 +695,7 @@ onmessage = async (ev) => {
           append(`— the program asked for input, but the Input box was empty; ` +
                  `fill it in, then Run again\n`, 'meta warn');
         }
-        setStatus(`done in ${ms} ms`);
-        runtimeEl.textContent = `wasi runtime · ${ms} ms`;
+        setStatus('');
       } else if (m.type === 'error') {
         finish();
         flushDecoders();

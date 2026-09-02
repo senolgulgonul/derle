@@ -208,8 +208,9 @@
 </head>
 <body>
 <div id="toolbar">
-  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.4</span></h1>
+  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.6</span></h1>
   <button class="tb-btn" id="open-c">Open</button>
+  <button class="tb-btn" id="save-c" title="Save the code to your computer (Ctrl+S)">Save</button>
   <select class="tb-btn" id="examples" aria-label="Load an example">
     <option value="" selected>Examples…</option>
     <option value="derle-test.c">derle-test.c — hello & types</option>
@@ -502,6 +503,30 @@ onmessage = async (ev) => {
   $('help-close').addEventListener('click', () => helpShow(false));
   helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpShow(false); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') helpShow(false); });
+
+  /* ---------- save ---------- */
+  function saveCode() {
+    let base = (codeTitle.textContent || 'main.c').trim();
+    base = base.replace(/\.(c|h)$/i, '');                      // drop extension
+    base = base.replace(/_\d{4}-\d{2}-\d{2}_\d{4}$/, '');   // drop old stamp on re-save
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+    const name = `${base}_${stamp}.c`;
+    const blob = new Blob([codeEl.value], { type: 'text/x-c' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus(`saved ${name}`);
+  }
+  $('save-c').addEventListener('click', saveCode);
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveCode();
+    }
+  });
 
   /* ---------- examples menu ---------- */
   $('examples').addEventListener('change', function () {

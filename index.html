@@ -206,7 +206,8 @@
 </head>
 <body>
 <div id="toolbar">
-  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.7</span></h1>
+  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.8</span></h1>
+  <button class="tb-btn" id="new-c" title="Start a fresh program">New</button>
   <button class="tb-btn" id="open-c">Open</button>
   <button class="tb-btn" id="save-c" title="Save the code to your computer (Ctrl+S)">Save</button>
   <select class="tb-btn" id="examples" aria-label="Load an example">
@@ -263,8 +264,9 @@
       <button id="help-close" aria-label="Close help">✕</button>
     </div>
     <div class="help-body">
-      <p><strong>Quick start.</strong> Type C code on the left (or pick one from
-      <em>Examples</em>, or <em>Open</em> a .c file), press <strong>Compile</strong>,
+      <p><strong>Quick start.</strong> Type C code on the left (start fresh with
+      <em>New</em>, pick one from <em>Examples</em>, or <em>Open</em> a .c file),
+      press <strong>Compile</strong>,
       then <strong>Run</strong>. Anything your program reads with
       <code>scanf</code>/<code>getchar</code> must be typed into the
       <strong>Input (stdin)</strong> box <em>before</em> running. Output, compiler
@@ -547,6 +549,22 @@ onmessage = async (ev) => {
       });
   });
 
+  /* ---------- new file ---------- */
+  const NEW_SKELETON = '#include <stdio.h>\n\nint main(void)\n{\n    \n    return 0;\n}\n';
+  $('new-c').addEventListener('click', () => {
+    if (codeEl.value.trim() &&
+        !confirm('Replace the current code with a fresh program? Unsaved changes will be lost.')) return;
+    codeEl.value = NEW_SKELETON;
+    updateGutter();
+    codeTitle.textContent = 'main.c';
+    wasmBytes = null;
+    runBtn.disabled = true;
+    setStatus('new program — write code, then Compile');
+    const cur = NEW_SKELETON.indexOf('    \n') + 4;   // cursor on the blank line inside main
+    codeEl.focus();
+    codeEl.setSelectionRange(cur, cur);
+  });
+
   /* ---------- file pickers ---------- */
   $('open-c').addEventListener('click', () => $('c-input').click());
   $('c-input').addEventListener('change', function () {
@@ -555,6 +573,9 @@ onmessage = async (ev) => {
       codeEl.value = text;
       updateGutter();
       codeTitle.textContent = file.name;
+      wasmBytes = null;              // side fix: opening a file must stale the old binary
+      runBtn.disabled = true;        // (Examples already did this; Open had been missed)
+      setStatus('');
     });
     this.value = '';
   });

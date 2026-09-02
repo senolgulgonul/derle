@@ -149,7 +149,8 @@
     color: var(--muted);
   }
   /* ---------- help modal ---------- */
-  #help-overlay {
+  #help-overlay { display: none; }
+  #help-overlay.open {
     position: fixed; inset: 0;
     background: rgba(38, 38, 36, 0.4);
     display: flex; align-items: center; justify-content: center;
@@ -201,7 +202,7 @@
 </head>
 <body>
 <div id="toolbar">
-  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.2</span></h1>
+  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.3</span></h1>
   <button class="tb-btn" id="open-c">Open</button>
   <select class="tb-btn" id="examples" aria-label="Load an example">
     <option value="" selected>Examples…</option>
@@ -252,7 +253,7 @@
   </div>
 </div>
 
-<div id="help-overlay" hidden>
+<div id="help-overlay">
   <div id="help-box" role="dialog" aria-modal="true" aria-labelledby="help-title">
     <div class="help-head">
       <span id="help-title">How to use Derle</span>
@@ -488,10 +489,11 @@ onmessage = async (ev) => {
 
   /* ---------- help modal ---------- */
   const helpOverlay = $('help-overlay');
-  $('help-btn').addEventListener('click', () => { helpOverlay.hidden = false; $('help-close').focus(); });
-  $('help-close').addEventListener('click', () => { helpOverlay.hidden = true; });
-  helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpOverlay.hidden = true; });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !helpOverlay.hidden) helpOverlay.hidden = true; });
+  const helpShow = on => helpOverlay.classList.toggle('open', on);
+  $('help-btn').addEventListener('click', () => { helpShow(true); $('help-close').focus(); });
+  $('help-close').addEventListener('click', () => helpShow(false));
+  helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpShow(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') helpShow(false); });
 
   /* ---------- examples menu ---------- */
   $('examples').addEventListener('change', function () {

@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Derle</title>
+<style>
+  :root {
+    --bg: #f5f5f4;
+    --surface: #ffffff;
+    --ink: #262624;
+    --muted: #73726f;
+    --line: #e3e2df;
+    --line-strong: #d1d0cc;
+    --btn-hover: #efefee;
+    --primary: #262624;
+    --primary-ink: #ffffff;
+    --err: #b3382c;
+    --ok: #3e7d52;
+    --warn: #9a6a17;
+    --gutter-bg: #fafaf9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column;
+    height: 100vh; overflow: hidden;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  /* ---------- toolbar ---------- */
+  #toolbar {
+    flex: none;
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    padding: 0.55rem 1rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+  }
+  #toolbar h1 { font-size: 0.95rem; font-weight: 650; margin: 0 0.75rem 0 0; }
+  .tb-btn {
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    padding: 0.42rem 0.9rem;
+    font: 500 0.85rem/1.2 inherit;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .tb-btn:hover:not(:disabled) { background: var(--btn-hover); }
+  .tb-btn:disabled { color: var(--muted); background: var(--bg); cursor: not-allowed; }
+  .tb-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .tb-btn.primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); font-weight: 600; }
+  .tb-btn.primary:hover:not(:disabled) { background: #3a3a37; }
+  .tb-btn.primary:disabled { background: #b8b7b4; border-color: #b8b7b4; color: #fff; }
+  #status { color: var(--muted); font-size: 0.8rem; margin-left: 0.25rem; }
+  #runtime-note { margin-left: auto; color: var(--muted); font-size: 0.78rem; }
+
+  /* ---------- split panes ---------- */
+  #split { flex: 1; display: flex; min-width: 0; min-height: 0; padding: 0.75rem; }
+  .pane {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    min-width: 8rem; min-height: 0;
+    overflow: hidden;
+  }
+  #code-pane { flex: 0 0 55%; }
+  #right-col { flex: 1; display: flex; flex-direction: column; gap: 0.75rem; min-width: 8rem; min-height: 0; }
+  #stdin-pane { flex: none; }
+  #console-pane { flex: 1; }
+  #stdin {
+    border: none; resize: none; outline: none;
+    min-height: 5.2rem;
+    padding: 0.6rem 0.9rem;
+    font: 0.85rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--ink);
+    background: var(--surface);
+  }
+  .pane-head {
+    flex: none;
+    display: flex; align-items: baseline; gap: 0.6rem;
+    padding: 0.45rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.8rem; font-weight: 600;
+  }
+  .pane-head .sub { font-weight: 400; color: var(--muted); font-size: 0.75rem; }
+  .pane-head .right { margin-left: auto; }
+  .pane-head button {
+    background: none; border: none; color: var(--muted);
+    font: inherit; font-weight: 500; cursor: pointer;
+    padding: 0.1rem 0.4rem; border-radius: 5px;
+  }
+  .pane-head button:hover { background: var(--btn-hover); color: var(--ink); }
+
+  #divider {
+    flex: none; width: 10px; cursor: col-resize;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #divider::before {
+    content: ""; width: 2px; height: 2.5rem;
+    background: var(--line-strong); border-radius: 2px;
+  }
+  #divider:hover::before, #divider.active::before { background: var(--muted); }
+
+  /* ---------- editor ---------- */
+  #editor-wrap { flex: 1; display: flex; min-height: 0; }
+  #gutter {
+    flex: none;
+    background: var(--gutter-bg);
+    border-right: 1px solid var(--line);
+    color: var(--muted);
+    text-align: right;
+    padding: 0.6rem 0.55rem 0.6rem 0.4rem;
+    overflow: hidden;
+    user-select: none;
+    font: 0.85rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+  }
+  #code {
+    flex: 1;
+    border: none; resize: none; outline: none;
+    padding: 0.6rem 0.9rem;
+    font: 0.85rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--ink);
+    white-space: pre; overflow: auto;
+    tab-size: 4;
+    background: var(--surface);
+  }
+
+  /* ---------- console + input line ---------- */
+  #console {
+    flex: 1; overflow: auto;
+    padding: 0.6rem 0.9rem;
+    font: 0.85rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #console .err { color: var(--err); }
+  #console .meta { color: var(--muted); }
+  #console .meta.ok { color: var(--ok); }
+  #console .meta.bad { color: var(--err); }
+  #console .meta.warn { color: var(--warn); }
+  #console:empty::before {
+    content: "Program output appears here.";
+    color: var(--muted);
+  }
+  /* ---------- narrow screens ---------- */
+  @media (max-width: 820px) {
+    body { overflow: auto; height: auto; min-height: 100vh; }
+    #split { flex-direction: column; }
+    #code-pane { flex: none; height: 45vh; }
+    #right-col { flex: none; }
+    #stdin-pane textarea { min-height: 3.5rem; }
+    #console-pane { flex: none; height: 35vh; }
+    #divider { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.0</span></h1>
+  <button class="tb-btn" id="open-c">Open</button>
+  <button class="tb-btn" id="load-wasm" title="Temporary, until the in-browser compiler lands">Load .wasm</button>
+  <button class="tb-btn" id="compile" title="clang runs in your browser; first use downloads the toolchain once">Compile</button>
+  <button class="tb-btn primary" id="run" disabled>Run</button>
+  <span id="status"></span>
+  <span id="runtime-note" class="mono">wasi runtime</span>
+  <input type="file" id="c-input" accept=".c,.h,.txt" hidden>
+  <input type="file" id="wasm-input" accept=".wasm" hidden>
+</div>
+
+<div id="split">
+  <section class="pane" id="code-pane" aria-label="Code">
+    <div class="pane-head">
+      <span id="code-title" class="mono">main.c</span>
+      <span class="sub" id="code-sub">compiled in your browser (clang → wasm)</span>
+    </div>
+    <div id="editor-wrap">
+      <div id="gutter" aria-hidden="true">1</div>
+      <textarea id="code" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="C source code"></textarea>
+    </div>
+  </section>
+
+  <div id="divider" role="separator" aria-orientation="vertical" aria-label="Resize panes"></div>
+
+  <div id="right-col">
+    <section class="pane" id="stdin-pane" aria-label="Input">
+      <div class="pane-head">
+        <span>Input (stdin)</span>
+        <span class="sub">read by scanf / getchar — filled before the program runs</span>
+      </div>
+      <textarea id="stdin" spellcheck="false" aria-label="Program input"
+                placeholder="One value or line per line, like you would type in a terminal."></textarea>
+    </section>
+    <section class="pane" id="console-pane" aria-label="Console">
+      <div class="pane-head">
+        <span>Console</span>
+        <span class="right"><button id="clear">Clear</button></span>
+      </div>
+      <div id="console" aria-live="polite"></div>
+    </section>
+  </div>
+</div>
+
+<!-- Worker source: the WASI shim + run loop (verified against wasi-sdk 24). -->
+<script id="worker-src" type="text/worker">
+const ERRNO_SUCCESS = 0, ERRNO_BADF = 8, ERRNO_NOSYS = 52, ERRNO_SPIPE = 70;
+
+class ProcExit { constructor(code) { this.code = code; } }
+
+async function runWasi(wasmBytes, stdinBytes, io) {
+  let memory;
+  let stdinPos = 0;
+  let eofSeen = false;
+
+  const view = () => new DataView(memory.buffer);
+
+  function readIovs(iovsPtr, iovsLen) {
+    const dv = view(), parts = [];
+    let total = 0;
+    for (let i = 0; i < iovsLen; i++) {
+      const ptr = dv.getUint32(iovsPtr + i * 8, true);
+      const len = dv.getUint32(iovsPtr + i * 8 + 4, true);
+      parts.push({ ptr, len });
+      total += len;
+    }
+    return { parts, total };
+  }
+
+  const wasi = {
+    fd_write(fd, iovsPtr, iovsLen, nwrittenPtr) {
+      if (fd !== 1 && fd !== 2) return ERRNO_BADF;
+      const { parts, total } = readIovs(iovsPtr, iovsLen);
+      const out = new Uint8Array(total);
+      let off = 0;
+      for (const p of parts) {
+        out.set(new Uint8Array(memory.buffer, p.ptr, p.len), off);
+        off += p.len;
+      }
+      view().setUint32(nwrittenPtr, total, true);
+      (fd === 2 ? io.onStderr : io.onStdout)(out);
+      return ERRNO_SUCCESS;
+    },
+    fd_read(fd, iovsPtr, iovsLen, nreadPtr) {
+      if (fd !== 0) return ERRNO_BADF;
+      const { parts } = readIovs(iovsPtr, iovsLen);
+      let nread = 0;
+      for (const p of parts) {
+        const n = Math.min(p.len, stdinBytes.length - stdinPos);
+        if (n <= 0) break;
+        new Uint8Array(memory.buffer, p.ptr, n)
+          .set(stdinBytes.subarray(stdinPos, stdinPos + n));
+        stdinPos += n; nread += n;
+      }
+      view().setUint32(nreadPtr, nread, true); // nread=0 => EOF
+      if (nread === 0 && !eofSeen) { eofSeen = true; if (io.onEof) io.onEof(); }
+      return ERRNO_SUCCESS;
+    },
+    proc_exit(code) { throw new ProcExit(code); },
+
+    args_sizes_get(argcPtr, bufSizePtr) {
+      view().setUint32(argcPtr, 0, true);
+      view().setUint32(bufSizePtr, 0, true);
+      return ERRNO_SUCCESS;
+    },
+    args_get() { return ERRNO_SUCCESS; },
+    environ_sizes_get(countPtr, bufSizePtr) {
+      view().setUint32(countPtr, 0, true);
+      view().setUint32(bufSizePtr, 0, true);
+      return ERRNO_SUCCESS;
+    },
+    environ_get() { return ERRNO_SUCCESS; },
+    clock_time_get(_id, _prec, timePtr) {
+      view().setBigUint64(timePtr, BigInt(Date.now()) * 1000000n, true);
+      return ERRNO_SUCCESS;
+    },
+    random_get(bufPtr, len) {
+      const buf = new Uint8Array(memory.buffer, bufPtr, len);
+      for (let i = 0; i < len; i += 65536)
+        crypto.getRandomValues(buf.subarray(i, Math.min(i + 65536, len)));
+      return ERRNO_SUCCESS;
+    },
+    fd_fdstat_get(fd, statPtr) {
+      if (fd > 2) return ERRNO_BADF;
+      new Uint8Array(memory.buffer, statPtr, 24).fill(0);
+      view().setUint8(statPtr, 2); // filetype: character_device
+      return ERRNO_SUCCESS;
+    },
+    fd_prestat_get() { return ERRNO_BADF; }, // no preopened dirs
+    fd_close() { return ERRNO_SUCCESS; },
+    fd_seek() { return ERRNO_SPIPE; },
+    fd_fdstat_set_flags() { return ERRNO_SUCCESS; },
+  };
+
+  const module = await WebAssembly.compile(wasmBytes);
+  const imports = { wasi_snapshot_preview1: {} };
+  for (const imp of WebAssembly.Module.imports(module)) {
+    if (imp.module !== 'wasi_snapshot_preview1') continue;
+    imports.wasi_snapshot_preview1[imp.name] =
+      wasi[imp.name] ?? (() => ERRNO_NOSYS);
+  }
+
+  const instance = await WebAssembly.instantiate(module, imports);
+  memory = instance.exports.memory;
+
+  try {
+    instance.exports._start();
+    return { exitCode: 0 };
+  } catch (e) {
+    if (e instanceof ProcExit) return { exitCode: e.code };
+    throw e;
+  }
+}
+
+onmessage = async (ev) => {
+  const { wasmBytes, stdinBytes } = ev.data;
+  try {
+    const { exitCode } = await runWasi(wasmBytes, stdinBytes, {
+      onStdout: b => postMessage({ type: 'stdout', bytes: b }, [b.buffer]),
+      onStderr: b => postMessage({ type: 'stderr', bytes: b }, [b.buffer]),
+      // Flag "asked for input but none was ever provided" — reading to the
+      // end of a non-empty buffer is a normal pattern and is not flagged.
+      onEof: () => { if (stdinBytes.length === 0) postMessage({ type: 'stdin-eof' }); },
+    });
+    postMessage({ type: 'exit', code: exitCode });
+  } catch (e) {
+    postMessage({ type: 'error', message: String(e && e.message || e) });
+  }
+};
+</script>
+
+<script>
+(() => {
+  const TIME_LIMIT_MS = 10000;
+
+  const $ = id => document.getElementById(id);
+  const codeEl = $('code'), gutter = $('gutter'), consoleEl = $('console');
+  const stdinBox = $('stdin'), statusEl = $('status'), runtimeEl = $('runtime-note');
+  const runBtn = $('run'), codeTitle = $('code-title');
+
+  const workerSrc = $('worker-src').textContent;
+  const workerUrl = URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' }));
+
+  let wasmBytes = null;
+  let worker = null, timer = null, t0 = 0;
+  let sawEmptyRead = false;
+  let decOut, decErr;
+
+  /* ---------- editor: line numbers + tab key ---------- */
+  function updateGutter() {
+    const lines = codeEl.value.split('\n').length || 1;
+    gutter.textContent = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
+    gutter.scrollTop = codeEl.scrollTop;
+  }
+  codeEl.addEventListener('input', updateGutter);
+  codeEl.addEventListener('scroll', () => { gutter.scrollTop = codeEl.scrollTop; });
+  codeEl.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      codeEl.setRangeText('    ', codeEl.selectionStart, codeEl.selectionEnd, 'end');
+      updateGutter();
+    }
+  });
+
+  codeEl.placeholder = 'C code goes here. Press Compile, then Run.';
+  updateGutter();
+
+  /* ---------- console ---------- */
+  function setStatus(text) { statusEl.textContent = text; }
+  function append(text, cls) {
+    if (!text) return;
+    const span = document.createElement('span');
+    if (cls) span.className = cls;
+    span.textContent = text;
+    consoleEl.appendChild(span);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+  $('clear').addEventListener('click', () => { consoleEl.textContent = ''; });
+
+  /* ---------- ?src= loading ---------- */
+  const srcUrl = new URLSearchParams(location.search).get('src');
+  if (srcUrl && /^https:\/\//.test(srcUrl)) {
+    setStatus('loading source…');
+    fetch(srcUrl)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+      .then(text => {
+        codeEl.value = text;
+        updateGutter();
+        codeTitle.textContent = srcUrl.split('/').pop() || 'main.c';
+        setStatus('');
+      })
+      .catch(err => {
+        setStatus('');
+        append(`— couldn't load source from URL (${err.message})\n`, 'meta warn');
+      });
+  }
+
+  /* ---------- file pickers ---------- */
+  $('open-c').addEventListener('click', () => $('c-input').click());
+  $('c-input').addEventListener('change', function () {
+    const file = this.files[0]; if (!file) return;
+    file.text().then(text => {
+      codeEl.value = text;
+      updateGutter();
+      codeTitle.textContent = file.name;
+    });
+    this.value = '';
+  });
+
+  $('load-wasm').addEventListener('click', () => $('wasm-input').click());
+  $('wasm-input').addEventListener('change', function () {
+    const file = this.files[0]; if (!file) return;
+    file.arrayBuffer().then(buf => {
+      const bytes = new Uint8Array(buf);
+      const isWasm = bytes.length >= 4 &&
+        bytes[0] === 0x00 && bytes[1] === 0x61 &&
+        bytes[2] === 0x73 && bytes[3] === 0x6d; // "\0asm"
+      if (!isWasm) {
+        wasmBytes = null;
+        runBtn.disabled = true;
+        append(`"${file.name}" doesn't look like a compiled program (.wasm).\n` +
+               `Did you pick the .c source file by mistake? ` +
+               `C source needs to be compiled first.\n`, 'meta bad');
+        return;
+      }
+      wasmBytes = bytes;
+      $('load-wasm').textContent = `Load .wasm (${file.name})`;
+      runBtn.disabled = false;
+      setStatus('');
+    });
+    this.value = '';
+  });
+
+  /* ---------- compile (clang in a module worker) ---------- */
+  let compWorker = null, compReady = false, compBusy = false;
+
+  function ensureCompiler() {
+    return new Promise((resolve, reject) => {
+      if (compReady) return resolve();
+      if (!compWorker) {
+        setStatus('downloading compiler… (~tens of MB, first time only)');
+        compWorker = new Worker(new URL('./js/compiler-worker.mjs', location.href), { type: 'module' });
+        compWorker.addEventListener('message', ev => {
+          if (ev.data.type === 'ready') { compReady = true; setStatus(''); resolve(); }
+          else if (ev.data.type === 'fatal' && !compReady) {
+            const msg = ev.data.message;
+            compWorker.terminate(); compWorker = null;
+            setStatus('');
+            append(`— couldn't load the compiler (${msg}); ` +
+                   `check that toolchain/ files are in place\n`, 'meta bad');
+            reject(new Error(msg));
+          }
+        });
+        compWorker.postMessage({ type: 'init', base: new URL('./toolchain/', location.href).href });
+      }
+    });
+  }
+
+  $('compile').addEventListener('click', async () => {
+    if (compBusy) return;
+    const source = codeEl.value;
+    if (!source.trim()) {
+      append(`— nothing to compile; the editor is empty\n`, 'meta warn');
+      return;
+    }
+    compBusy = true;
+    $('compile').disabled = true;
+    consoleEl.textContent = '';
+    try {
+      await ensureCompiler();
+      setStatus('compiling…');
+      const t0c = performance.now();
+      const result = await new Promise(resolve => {
+        const onMsg = ev => {
+          if (ev.data.type === 'result' || ev.data.type === 'fatal') {
+            compWorker.removeEventListener('message', onMsg);
+            resolve(ev.data);
+          }
+        };
+        compWorker.addEventListener('message', onMsg);
+        compWorker.postMessage({ type: 'compile', source, fileName: codeTitle.textContent || 'main.c' });
+      });
+      const ms = Math.round(performance.now() - t0c);
+      if (result.type === 'fatal') {
+        append(`— compiler error: ${result.message}\n`, 'meta bad');
+        setStatus('error');
+      } else if (!result.ok) {
+        append(result.log, 'err');
+        append(`\n— compilation failed\n`, 'meta bad');
+        consoleEl.scrollTop = 0;   // first error line first
+        setStatus('compile failed');
+      } else {
+        if (result.log.trim()) append(result.log, 'meta'); // warnings
+        wasmBytes = result.wasm;
+        runBtn.disabled = false;
+        append(`— compiled in ${ms} ms — press Run\n`, 'meta ok');
+        setStatus(`compiled in ${ms} ms`);
+        runtimeEl.textContent = `clang · wasm · ${ms} ms`;
+      }
+    } catch (e) { /* already reported */ }
+    compBusy = false;
+    $('compile').disabled = false;
+  });
+
+  /* ---------- resizable split ---------- */
+  const divider = $('divider'), codePane = $('code-pane'), split = $('split');
+  divider.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    divider.setPointerCapture(e.pointerId);
+    divider.classList.add('active');
+    const move = ev => {
+      const r = split.getBoundingClientRect();
+      let pct = ((ev.clientX - r.left) / r.width) * 100;
+      pct = Math.max(20, Math.min(80, pct));
+      codePane.style.flexBasis = pct + '%';
+    };
+    const up = ev => {
+      divider.classList.remove('active');
+      divider.releasePointerCapture(ev.pointerId);
+      divider.removeEventListener('pointermove', move);
+      divider.removeEventListener('pointerup', up);
+    };
+    divider.addEventListener('pointermove', move);
+    divider.addEventListener('pointerup', up);
+  });
+
+  /* ---------- run ---------- */
+  function finish() {
+    clearTimeout(timer); timer = null;
+    if (worker) { worker.terminate(); worker = null; }
+    runBtn.disabled = !wasmBytes;
+  }
+  function flushDecoders() {
+    append(decOut.decode(), '');
+    append(decErr.decode(), 'err');
+  }
+
+  runBtn.addEventListener('click', () => {
+    consoleEl.textContent = '';
+    sawEmptyRead = false;
+    decOut = new TextDecoder(); decErr = new TextDecoder();
+    runBtn.disabled = true;
+    setStatus('running…');
+
+    worker = new Worker(workerUrl);
+    t0 = performance.now();
+
+    timer = setTimeout(() => {
+      finish();
+      flushDecoders();
+      append(`\n— program halted after ${TIME_LIMIT_MS / 1000} s; ` +
+             `this usually means an infinite loop\n`, 'meta bad');
+      setStatus('halted');
+    }, TIME_LIMIT_MS);
+
+    worker.onmessage = (ev) => {
+      const m = ev.data;
+      if (m.type === 'stdout') append(decOut.decode(m.bytes, { stream: true }), '');
+      else if (m.type === 'stderr') append(decErr.decode(m.bytes, { stream: true }), 'err');
+      else if (m.type === 'stdin-eof') { sawEmptyRead = true; }
+      else if (m.type === 'exit') {
+        const ms = Math.round(performance.now() - t0);
+        finish();
+        flushDecoders();
+        append(`\n— program exited with code ${m.code}\n`,
+               m.code === 0 ? 'meta ok' : 'meta bad');
+        if (sawEmptyRead) {
+          append(`— the program asked for input, but the Input box was empty; ` +
+                 `fill it in, then Run again\n`, 'meta warn');
+        }
+        setStatus(`done in ${ms} ms`);
+        runtimeEl.textContent = `wasi runtime · ${ms} ms`;
+      } else if (m.type === 'error') {
+        finish();
+        flushDecoders();
+        append(`\n— runtime error: ${m.message}\n`, 'meta bad');
+        setStatus('error');
+      }
+    };
+    worker.onerror = (e) => {
+      finish();
+      append(`\n— worker error: ${e.message}\n`, 'meta bad');
+      setStatus('error');
+    };
+
+    const stdinBytes = new TextEncoder().encode(stdinBox.value);
+    worker.postMessage({ wasmBytes: wasmBytes.slice(), stdinBytes });
+  });
+})();
+</script>
+</body>
+</html>

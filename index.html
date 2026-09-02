@@ -148,6 +148,45 @@
     content: "Program output appears here.";
     color: var(--muted);
   }
+  /* ---------- help modal ---------- */
+  #help-overlay {
+    position: fixed; inset: 0;
+    background: rgba(38, 38, 36, 0.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10; padding: 1rem;
+  }
+  #help-box {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    max-width: 34rem; max-height: 85vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  }
+  .help-head {
+    flex: none; display: flex; align-items: center; justify-content: space-between;
+    padding: 0.6rem 1rem; border-bottom: 1px solid var(--line);
+    font-weight: 650;
+  }
+  .help-head button {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 1rem; padding: 0.2rem 0.5rem; border-radius: 5px;
+  }
+  .help-head button:hover { background: var(--btn-hover); color: var(--ink); }
+  .help-body { overflow-y: auto; padding: 0.4rem 1.1rem 1rem; font-size: 0.9rem; }
+  .help-body p { margin: 0.7rem 0; }
+  .help-body code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82em; background: var(--gutter-bg);
+    border: 1px solid var(--line); border-radius: 4px; padding: 0.05rem 0.3rem;
+  }
+  .help-body pre {
+    font: 0.78rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--gutter-bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 0.5rem 0.7rem;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+  }
+
   /* ---------- narrow screens ---------- */
   @media (max-width: 820px) {
     body { overflow: auto; height: auto; min-height: 100vh; }
@@ -162,7 +201,7 @@
 </head>
 <body>
 <div id="toolbar">
-  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.1</span></h1>
+  <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.2</span></h1>
   <button class="tb-btn" id="open-c">Open</button>
   <select class="tb-btn" id="examples" aria-label="Load an example">
     <option value="" selected>Examples…</option>
@@ -174,6 +213,7 @@
   </select>
   <button class="tb-btn" id="compile" title="clang runs in your browser; first use downloads the toolchain once">Compile</button>
   <button class="tb-btn primary" id="run" disabled>Run</button>
+  <button class="tb-btn" id="help-btn" aria-haspopup="dialog">Help</button>
   <span id="status"></span>
   <span id="runtime-note" class="mono">wasi runtime</span>
   <input type="file" id="c-input" accept=".c,.h,.txt" hidden>
@@ -209,6 +249,40 @@
       </div>
       <div id="console" aria-live="polite"></div>
     </section>
+  </div>
+</div>
+
+<div id="help-overlay" hidden>
+  <div id="help-box" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="help-head">
+      <span id="help-title">How to use Derle</span>
+      <button id="help-close" aria-label="Close help">✕</button>
+    </div>
+    <div class="help-body">
+      <p><strong>Quick start.</strong> Type C code on the left (or pick one from
+      <em>Examples</em>, or <em>Open</em> a .c file), press <strong>Compile</strong>,
+      then <strong>Run</strong>. Anything your program reads with
+      <code>scanf</code>/<code>getchar</code> must be typed into the
+      <strong>Input (stdin)</strong> box <em>before</em> running. Output, compiler
+      errors and the exit code appear in the <strong>Console</strong>. If you edit
+      the code, compile again before running.</p>
+
+      <p><strong>Sharing code with a link.</strong> Derle can open any C file that
+      is reachable by URL, using the <code>?src=</code> parameter:</p>
+      <pre>https://senolgulgonul.github.io/derle/?src=&lt;raw file URL&gt;</pre>
+      <p>For a file on GitHub: open it on github.com, press the
+      <strong>Raw</strong> button, copy that address, and append it after
+      <code>?src=</code>. Example:</p>
+      <pre>https://senolgulgonul.github.io/derle/
+  ?src=https://raw.githubusercontent.com/senolgulgonul/derle/main/examples/derle-test.c</pre>
+      <p>Anyone opening that link gets your code in the editor, one Compile away
+      from running — ideal for sharing exercises or asking for help.</p>
+
+      <p><strong>Good to know.</strong> The first visit downloads the compiler
+      once (~23 MB); afterwards it loads from cache. Programs are stopped after
+      10 seconds (usually an infinite loop). Everything runs locally in your
+      browser — your code never leaves your machine.</p>
+    </div>
   </div>
 </div>
 
@@ -411,6 +485,13 @@ onmessage = async (ev) => {
         append(`— couldn't load source from URL (${err.message})\n`, 'meta warn');
       });
   }
+
+  /* ---------- help modal ---------- */
+  const helpOverlay = $('help-overlay');
+  $('help-btn').addEventListener('click', () => { helpOverlay.hidden = false; $('help-close').focus(); });
+  $('help-close').addEventListener('click', () => { helpOverlay.hidden = true; });
+  helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpOverlay.hidden = true; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !helpOverlay.hidden) helpOverlay.hidden = true; });
 
   /* ---------- examples menu ---------- */
   $('examples').addEventListener('change', function () {

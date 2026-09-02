@@ -55,6 +55,7 @@
   .tb-btn.primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); font-weight: 600; }
   .tb-btn.primary:hover:not(:disabled) { background: #3a3a37; }
   .tb-btn.primary:disabled { background: #b8b7b4; border-color: #b8b7b4; color: #fff; }
+  select.tb-btn { appearance: auto; padding-right: 0.5rem; max-width: 14rem; }
   #status { color: var(--muted); font-size: 0.8rem; margin-left: 0.25rem; }
   #runtime-note { margin-left: auto; color: var(--muted); font-size: 0.78rem; }
 
@@ -163,20 +164,26 @@
 <div id="toolbar">
   <h1>Derle <span style="font-weight:400;color:var(--muted);font-size:0.8rem">v1.0</span></h1>
   <button class="tb-btn" id="open-c">Open</button>
-  <button class="tb-btn" id="load-wasm" title="Temporary, until the in-browser compiler lands">Load .wasm</button>
+  <select class="tb-btn" id="examples" aria-label="Load an example">
+    <option value="" selected>Examples…</option>
+    <option value="derle-test.c">derle-test.c — hello & types</option>
+    <option value="scanf-add.c">scanf-add.c — reading input</option>
+    <option value="stderr-exit.c">stderr-exit.c — stderr & exit code</option>
+    <option value="syntax-error.c">syntax-error.c — a compile error</option>
+    <option value="loop.c">loop.c — infinite loop guard</option>
+  </select>
   <button class="tb-btn" id="compile" title="clang runs in your browser; first use downloads the toolchain once">Compile</button>
   <button class="tb-btn primary" id="run" disabled>Run</button>
   <span id="status"></span>
   <span id="runtime-note" class="mono">wasi runtime</span>
   <input type="file" id="c-input" accept=".c,.h,.txt" hidden>
-  <input type="file" id="wasm-input" accept=".wasm" hidden>
 </div>
 
 <div id="split">
   <section class="pane" id="code-pane" aria-label="Code">
     <div class="pane-head">
       <span id="code-title" class="mono">main.c</span>
-      <span class="sub" id="code-sub">compiled in your browser (clang → wasm)</span>
+      <span class="sub" id="code-sub">compiled in your browser with clang — nothing leaves this tab</span>
     </div>
     <div id="editor-wrap">
       <div id="gutter" aria-hidden="true">1</div>
@@ -355,7 +362,14 @@ onmessage = async (ev) => {
     gutter.textContent = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
     gutter.scrollTop = codeEl.scrollTop;
   }
-  codeEl.addEventListener('input', updateGutter);
+  codeEl.addEventListener('input', () => {
+    updateGutter();
+    if (wasmBytes) {           // code changed after a compile: stale program
+      wasmBytes = null;
+      runBtn.disabled = true;
+      setStatus('code changed — compile again');
+    }
+  });
   codeEl.addEventListener('scroll', () => { gutter.scrollTop = codeEl.scrollTop; });
   codeEl.addEventListener('keydown', e => {
     if (e.key === 'Tab') {
@@ -398,6 +412,27 @@ onmessage = async (ev) => {
       });
   }
 
+  /* ---------- examples menu ---------- */
+  $('examples').addEventListener('change', function () {
+    const name = this.value;
+    if (!name) return;
+    setStatus('loading example…');
+    fetch('examples/' + name)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+      .then(text => {
+        codeEl.value = text;
+        updateGutter();
+        codeTitle.textContent = name;
+        wasmBytes = null;
+        runBtn.disabled = true;
+        setStatus('');
+      })
+      .catch(err => {
+        setStatus('');
+        append(`— couldn't load example (${err.message})\n`, 'meta warn');
+      });
+  });
+
   /* ---------- file pickers ---------- */
   $('open-c').addEventListener('click', () => $('c-input').click());
   $('c-input').addEventListener('change', function () {
@@ -406,30 +441,6 @@ onmessage = async (ev) => {
       codeEl.value = text;
       updateGutter();
       codeTitle.textContent = file.name;
-    });
-    this.value = '';
-  });
-
-  $('load-wasm').addEventListener('click', () => $('wasm-input').click());
-  $('wasm-input').addEventListener('change', function () {
-    const file = this.files[0]; if (!file) return;
-    file.arrayBuffer().then(buf => {
-      const bytes = new Uint8Array(buf);
-      const isWasm = bytes.length >= 4 &&
-        bytes[0] === 0x00 && bytes[1] === 0x61 &&
-        bytes[2] === 0x73 && bytes[3] === 0x6d; // "\0asm"
-      if (!isWasm) {
-        wasmBytes = null;
-        runBtn.disabled = true;
-        append(`"${file.name}" doesn't look like a compiled program (.wasm).\n` +
-               `Did you pick the .c source file by mistake? ` +
-               `C source needs to be compiled first.\n`, 'meta bad');
-        return;
-      }
-      wasmBytes = bytes;
-      $('load-wasm').textContent = `Load .wasm (${file.name})`;
-      runBtn.disabled = false;
-      setStatus('');
     });
     this.value = '';
   });

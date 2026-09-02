@@ -1,43 +1,50 @@
-# csim-app
+# Derle — a real C compiler in your browser
 
-The CSim page with the in-browser compiler wired in.
+**Live:** https://senolgulgonul.github.io/derle/
 
-## Setup
+Derle compiles and runs standard C entirely inside your browser tab.
+No installation, no account, no server: clang 18 and the wasm linker
+themselves run as WebAssembly, the compiled program runs natively in
+the browser, and nothing you type ever leaves your machine.
 
-Copy the five files from csim-toolchain's `dist/` into `toolchain/`:
+Write C on the left, press **Compile**, then **Run**. Program input
+goes in the **Input (stdin)** box; output and compiler diagnostics
+appear in the **Console**. The first visit downloads the toolchain
+once (~23 MB compressed); after that everything is served from cache
+and each compile takes a few seconds.
 
-```
-csim-app/
-├── index.html
-├── js/
-│   ├── compile.mjs           (shared with csim-toolchain, keep in sync)
-│   └── compiler-worker.mjs
-└── toolchain/
-    ├── clang.mjs
-    ├── clang.wasm
-    ├── lld.mjs
-    ├── lld.wasm
-    └── sysroot.tar
-```
+## Loading code from a URL
 
-## Local test
-
-Module workers don't run from file:// — serve the folder:
+Append `?src=` with a raw file URL to open code directly in the editor:
 
 ```
-cd csim-app
-python3 -m http.server 8000
+https://senolgulgonul.github.io/derle/?src=https://raw.githubusercontent.com/senolgulgonul/derle/main/examples/derle-test.c
 ```
 
-then open http://localhost:8000. Flow: type C code → Compile
-(first click downloads the toolchain once, then it's cached) → Run.
-The "Load .wasm" button remains as a developer path and still works
-without the toolchain files.
+The `examples/` folder contains small programs exercising stdout,
+stdin, stderr/exit codes, compiler diagnostics and the 10-second
+infinite-loop guard.
 
-## Deploy
+## How it works
 
-Push the folder to a GitHub Pages branch as-is. If dist artifacts are
-too big for the repo, host them on a GitHub Release and change the
-`base` URL passed to the compiler worker in index.html.
-Next step after first deploy: a Service Worker so the toolchain is
-cached explicitly and the page works offline.
+- **clang 18.1.2 + lld (wasm-ld)**, built from source with Emscripten
+  into `toolchain/clang.wasm` and `toolchain/lld.wasm`
+- **wasi-libc sysroot** (wasi-sdk 24, C-only) unpacked into an
+  in-memory filesystem inside a Web Worker
+- pipeline: editor source → clang `-c` (in-process cc1, `-std=c99 -Wall`
+  planned as course default) → wasm-ld → `main.wasm`
+- the produced program targets **wasm32-wasi** and runs under a small
+  (~100 line) WASI shim: `fd_write` → console, `fd_read` → the Input
+  box, `proc_exit` → exit code; runaway programs are halted after 10 s
+
+Derle is a sibling of [Sekiz](https://senolgulgonul.github.io/sekiz/)
+(Arduino toolchain + cycle-accurate ATmega328P simulator in the
+browser) and [VeriSim](https://senolgulgonul.github.io/verisim/)
+(Icarus Verilog + Yosys in the browser), and will anchor an upcoming
+structured C programming course for first-year EEE students.
+
+## License note
+
+The shipped toolchain contains LLVM/clang (Apache-2.0 WITH
+LLVM-exception) and wasi-libc (Apache-2.0/MIT) binaries built from
+unmodified upstream sources at tag `llvmorg-18.1.2` / wasi-sdk 24.
